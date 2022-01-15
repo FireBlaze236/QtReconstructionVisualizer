@@ -17,6 +17,7 @@ SOURCES += \
 
 HEADERS += \
     Camera.h \
+    Filepaths.h \
     happly.h \
     mainwindow.h \
     myglwidget.h

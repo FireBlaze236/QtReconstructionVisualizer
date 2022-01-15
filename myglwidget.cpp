@@ -7,6 +7,8 @@
 
 #include <vector>
 
+#include<Filepaths.h>
+
 MyGLWidget::MyGLWidget(QWidget *parent)
     :QOpenGLWidget(parent), m_program(0), m_textureProgram(0)
 {
@@ -41,8 +43,8 @@ void MyGLWidget::initializeGL()
 
     m_program = new QOpenGLShaderProgram(this);
     m_program->create();
-    m_program->addShaderFromSourceFile(QOpenGLShader::Vertex, "C:/Shaders/vertex.glsl");
-    m_program->addShaderFromSourceFile(QOpenGLShader::Fragment, "C:/Shaders/fragment.glsl");
+    m_program->addShaderFromSourceFile(QOpenGLShader::Vertex, VERTEX_SHADER_BASIC);
+    m_program->addShaderFromSourceFile(QOpenGLShader::Fragment, FRAGMENT_SHADER_COLOR);
 
     m_program->link();
     m_program->bind();
@@ -99,7 +101,7 @@ void MyGLWidget::drawPointCloud()
     f->glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
 
-    happly::PLYData plyIn("C:/Shaders/PointCloud.ply");
+    happly::PLYData plyIn(POINT_CLOUD_TEST);
 
     std::vector<float> vertex_x = plyIn.getElement("vertex").getProperty<float>("x");
     std::vector<float> vertex_y = plyIn.getElement("vertex").getProperty<float>("y");
@@ -242,7 +244,7 @@ void MyGLWidget::drawCameraFrustum(QVector3D pos, QVector3D rotation)
 
     }
 
-    drawQuad(v[7], v[5], v[4], v[6]);
+    //drawQuad(v[7], v[5], v[4], v[6]);
 
     drawLine(v[0], v[1]);
     drawLine(v[0], v[2]);
