@@ -1,6 +1,8 @@
 #ifndef MYGLWIDGET_H
 #define MYGLWIDGET_H
 
+#include "mystructs.h"
+
 #include <QtOpenGLWidgets/QOpenGLWidget>
 #include <QOpenGLFunctions>
 #include <QOpenGLVertexArrayObject>
@@ -29,9 +31,9 @@ protected:
     //Drawing functions to be called within paintGL
     void drawPointCloud();
     void drawLine(QVector3D start, QVector3D end);
-    void drawQuad(QVector3D p0, QVector3D p1, QVector3D p2, QVector3D p3);
+    void drawQuad(Frustum& frustum);
 
-    void drawCameraFrustum(QVector3D pos, QVector3D rotation);
+    void drawCameraFrustum(Frustum& frustum);
 
 
     //Mouse
@@ -48,12 +50,13 @@ protected:
 
 private:
     QOpenGLVertexArrayObject m_vao;
-    QOpenGLBuffer m_vbo;
+    QOpenGLBuffer m_vbo_pointCloud;
+
+    QOpenGLBuffer m_vbo_frustum;
 
     QOpenGLShaderProgram *m_program;
-
     QOpenGLShaderProgram *m_textureProgram;
-    QOpenGLTexture *m_texture;
+
 
 
     //Input
@@ -69,9 +72,19 @@ private:
     int m_modelMatrixUniform;
     int m_inputColorUniform;
 
+    //For the frustums
+    int m_texturedShaderProjUniform;
+    int m_texturedShaderModelUniform;
+    int m_texturedShaderViewUniform;
 
-    //Timer
-    QTimer timer;
+    //Point Cloud
+
+    PointCloud *m_pointCloud;
+
+    Frustum *m_frustumOne;
+    Frustum *m_frustumTwo;
+    Frustum *m_frustumThree;
+    Frustum *m_frustumFour;
 
 };
 

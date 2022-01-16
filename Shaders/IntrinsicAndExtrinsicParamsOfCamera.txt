@@ -1,0 +1,35 @@
+Note that same camera is used hence the camera matrix is same for all 4 of them. 
+For more information regarding intrinsic and extrinsic params refer to the camera calibration theory reference attached
+in assignment. 
+
+Camera Matrix (K) = 4876.8, 0, 2032;
+					0, 4876.8, 1520;
+					0,	 0,	 	1
+					
+Camera 1 : 					
+Rotation of camera in euler (3x1) : -0.000964061;
+								-0.136274;
+								-0.00401575]
+								
+Position of camera (3x1) : [-0.639768;
+							-0.00425937;
+							-0.0355112 ]
+
+Camera 2:
+Rotation of camera in euler  (3x1): [-0.000356492;
+									-0.0603128;
+									-0.002191]
+							
+Position of camera  (3x1) : [-0.267663;
+							-0.00128758;
+							-0.0993487]
+
+Camera 3 : 
+Rotation of camera in euler  (3x1):	[-0.000550294;0.00500292;-0.000902102]
+								
+Position of camera (3x1)	: [0.0114874;-0.00175259;0.0102903]
+
+Camera 4 : 
+Rotation of camera in euler: [-0.00237686;-0.15328;-0.00354582]
+							
+Position of camera :		 [-1.04132;-0.010242;0.00996433]

@@ -10,7 +10,7 @@
 #include<Filepaths.h>
 
 MyGLWidget::MyGLWidget(QWidget *parent)
-    :QOpenGLWidget(parent), m_program(0), m_textureProgram(0)
+    :QOpenGLWidget(parent), m_program(0), m_textureProgram(0), m_pointCloud(0)
 {
 }
 
@@ -22,8 +22,14 @@ MyGLWidget::~MyGLWidget()
     delete m_program;
     delete m_textureProgram;
     delete m_camera;
+    delete m_pointCloud;
 
-    m_vbo.destroy();
+    //delete frustums
+    delete m_frustumOne;
+    delete m_frustumTwo;
+
+
+    m_vbo_pointCloud.destroy();
     m_vao.destroy();
 
     doneCurrent();
@@ -38,7 +44,8 @@ void MyGLWidget::initializeGL()
         m_vao.bind();
     }
 
-    m_vbo.create();
+    m_vbo_pointCloud.create();
+    m_vbo_frustum.create();
 
 
     m_program = new QOpenGLShaderProgram(this);
@@ -49,8 +56,7 @@ void MyGLWidget::initializeGL()
     m_program->link();
     m_program->bind();
 
-    //Texture shader as well
-    m_textureProgram = new QOpenGLShaderProgram(this);
+
 
 
     m_projectionMatrixUniform = m_program->uniformLocation("projectionMatrix");
@@ -59,8 +65,25 @@ void MyGLWidget::initializeGL()
     m_inputColorUniform = m_program->uniformLocation("inputColor");
 
 
+    //Texture shader as well
+    m_textureProgram = new QOpenGLShaderProgram(this);
+    m_textureProgram->create();
+    m_textureProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, VERTEX_SHADER_TEX);
+    m_textureProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, FRAGMENT_SHADER_TEX);
+
+    m_textureProgram->link();
+    m_textureProgram->bind();
+
+    m_texturedShaderModelUniform = m_textureProgram->uniformLocation("modelMatrix");
+    m_texturedShaderViewUniform = m_textureProgram->uniformLocation("viewMatrix");
+    m_texturedShaderProjUniform = m_textureProgram->uniformLocation("projectionMatrix");
+
+
+    //Setup all matrices
     m_modelMatrix.setToIdentity();
     m_program->setUniformValue(m_modelMatrixUniform, m_modelMatrix);
+    m_textureProgram->setUniformValue(m_texturedShaderModelUniform, m_modelMatrix);
+
 
     QVector3D pos(0, 0, -1);
     QVector3D target(0, 0, 1);
@@ -71,14 +94,41 @@ void MyGLWidget::initializeGL()
 
     m_program->setUniformValue(m_viewMatrixUniform, m_camera->getViewMatrix());
     m_program->setUniformValue(m_projectionMatrixUniform, m_camera->getPerspectiveProjection());
+
+
+    m_textureProgram->setUniformValue(m_texturedShaderViewUniform, m_camera->getViewMatrix());
+    m_textureProgram->setUniformValue(m_projectionMatrixUniform, m_camera->getPerspectiveProjection());
+
+
+    m_pointCloud = new PointCloud(POINT_CLOUD_TEST);
+
+    m_frustumOne = new Frustum(TEXTUREPATH_VIEW_1, m_modelMatrix,
+                               QVector3D(-0.639768, -0.00425937, -0.0355112), QVector3D(-0.000964061,-0.136274,-0.00401575)) ;
+    m_frustumTwo = new Frustum(TEXTUREPATH_VIEW_2, m_modelMatrix,
+                               QVector3D(-0.267663,-0.00128758,-0.0993487), QVector3D(-0.000356492,-0.0603128,-0.002191)) ;
+
+    m_frustumThree = new Frustum(TEXTUREPATH_VIEW_3, m_modelMatrix,
+                               QVector3D(0.0114874,-0.00175259,0.0102903), QVector3D(-0.000550294,0.00500292,-0.000902102)) ;
+    m_frustumFour = new Frustum(TEXTUREPATH_VIEW_4, m_modelMatrix,
+                               QVector3D(-1.04132,-0.010242,0.00996433), QVector3D(-0.00237686,-0.15328,-0.00354582)) ;
+
+
+    m_vbo_frustum.release();
+    m_vbo_pointCloud.release();
+
+    m_program->release();
+    m_textureProgram->release();
 }
 
 void MyGLWidget::paintGL()
 {
     drawPointCloud();
 
-    drawCameraFrustum(QVector3D(-0.639768, -0.00425937, -0.0355112),
-                      QVector3D(-0.000964061,-0.136274,-0.00401575));
+    drawCameraFrustum(*m_frustumOne);
+    drawCameraFrustum(*m_frustumTwo);
+
+    drawCameraFrustum(*m_frustumThree);
+    drawCameraFrustum(*m_frustumFour);
 
     //qDebug()<< vertices.size();
 
@@ -100,31 +150,6 @@ void MyGLWidget::drawPointCloud()
     //f->glClearColor(0.8, 0.4, 0.4, 1);
     f->glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
-
-    happly::PLYData plyIn(POINT_CLOUD_TEST);
-
-    std::vector<float> vertex_x = plyIn.getElement("vertex").getProperty<float>("x");
-    std::vector<float> vertex_y = plyIn.getElement("vertex").getProperty<float>("y");
-    std::vector<float> vertex_z = plyIn.getElement("vertex").getProperty<float>("z");
-
-    std::vector<uchar> color_r = plyIn.getElement("vertex").getProperty<uchar>("red");
-    std::vector<uchar> color_g = plyIn.getElement("vertex").getProperty<uchar>("green");
-    std::vector<uchar> color_b = plyIn.getElement("vertex").getProperty<uchar>("blue");
-
-    std::vector<float> vertices;
-
-    for(int i = 0; i < vertex_x.size();i++)
-    {
-        vertices.push_back(vertex_x[i]);
-        vertices.push_back(vertex_y[i]);
-        vertices.push_back(vertex_z[i]);
-
-        vertices.push_back(color_r[i] / 255.0f);
-        vertices.push_back(color_g[i] / 255.0f);
-        vertices.push_back(color_b[i] / 255.0f);
-    }
-
-
     m_program->bind();
     m_modelMatrix.setToIdentity();
     m_modelMatrix.rotate(180, QVector3D(1, 0, 0)); //flip along y,  format specific
@@ -136,9 +161,9 @@ void MyGLWidget::drawPointCloud()
 
     m_vao.bind();
 
-    m_vbo.allocate(&vertices[0], sizeof(float)* vertices.size());
-    m_vbo.bind();
-    f->glBufferData(GL_ARRAY_BUFFER, vertices.size(), &vertices[0], GL_STATIC_DRAW);
+    m_vbo_pointCloud.allocate(&m_pointCloud->vertices[0], sizeof(float)* m_pointCloud->vertices.size());
+    m_vbo_pointCloud.bind();
+    f->glBufferData(GL_ARRAY_BUFFER, m_pointCloud->vertices.size(), &m_pointCloud->vertices[0], GL_STATIC_DRAW);
 
     f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 6, (void*)0);
     f->glEnableVertexAttribArray(0);
@@ -149,117 +174,87 @@ void MyGLWidget::drawPointCloud()
     m_program->bind();
     glPointSize(1.0);
 
-    f->glDrawArrays(GL_POINTS, 0, vertex_x.size());
+    f->glDrawArrays(GL_POINTS, 0, m_pointCloud->points);
+
+    m_vbo_pointCloud.release();
+    m_program->release();
 
 }
 
 void MyGLWidget::drawLine(QVector3D start, QVector3D end)
 {
-
     m_vao.bind();
 
-    QVector3D white(1, 1, 1);
+    m_program->bind();
+
+    QVector3D white(0, 0, 1);
+
     m_program->setUniformValue(m_inputColorUniform, white);
 
     glBegin(GL_LINES);
-
     glVertex3f(start.x(), start.y(), start.z());
     glVertex3f(end.x(), end.y(), end.z());
     glEnd();
+
+    m_program->release();
 }
 
-void MyGLWidget::drawQuad(QVector3D p0, QVector3D p1, QVector3D p2, QVector3D p3)
+void MyGLWidget::drawQuad(Frustum& frustum)
 {
     QOpenGLFunctions *f = QOpenGLContext::currentContext()->functions();
     m_vao.bind();
 
-    float vertices[] = {
-        p0.x(), p0.y(), p0.z(),
-        p1.x(), p1.y(), p1.z(),
-        p2.x(), p2.y(), p2.z(),
-
-        p2.x(), p2.y(), p2.z(),
-        p3.x(), p3.y(), p3.z(),
-        p0.x(), p0.y(), p0.z()
-    };
-
-    QVector3D red(0.5, 0, 0);
-    m_program->bind();
-    m_program->setUniformValue(m_inputColorUniform, red);
-
-    m_program->setUniformValue(m_viewMatrixUniform, m_camera->getViewMatrix());
-    m_program->setUniformValue(m_projectionMatrixUniform, m_camera->getPerspectiveProjection());
 
 
-    m_vbo.allocate(&vertices[0], sizeof(vertices));
-    m_vbo.bind();
-    f->glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), &vertices[0], GL_STATIC_DRAW);
 
-    f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
+    m_textureProgram->bind();
+    m_textureProgram->setUniformValue(m_texturedShaderViewUniform, m_camera->getViewMatrix());
+    m_textureProgram->setUniformValue(m_texturedShaderProjUniform, m_camera->getPerspectiveProjection());
+
+    m_textureProgram->setUniformValue(m_texturedShaderModelUniform, m_modelMatrix);
+
+    frustum.texture->bind();
+
+    m_vbo_frustum.allocate(&frustum.quadVertex[0], frustum.quadVertex.size()*sizeof(float));
+    m_vbo_frustum.bind();
+
+    f->glBufferData(GL_ARRAY_BUFFER, frustum.quadVertex.size()*sizeof(float), &frustum.quadVertex[0], GL_STATIC_DRAW);
+    f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (void*)0);
     f->glEnableVertexAttribArray(0);
 
+    f->glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (void*)(sizeof(float)* 3));
+    f->glEnableVertexAttribArray(1);
+
     f->glDrawArrays(GL_TRIANGLES,0, 6);
+
+
+    f->glClear(GL_DEPTH_BUFFER_BIT);
+
+    frustum.texture->release();
+
+    m_textureProgram->release();
+    m_vbo_frustum.release();
 }
 
-void MyGLWidget::drawCameraFrustum(QVector3D pos, QVector3D rotation)
+void MyGLWidget::drawCameraFrustum(Frustum& frustum)
 {
-    QMatrix4x4 inv; //The inverse of a view matrix of camera, in our case this is already producable
-    inv.setToIdentity();
-    inv.translate(pos);
-    inv.rotate(ToQuaternion(rotation));
 
+    drawQuad(frustum);
 
-    float ar = 2032.0f/ 1520.f; //aspect
-    float fov = 0.82f; // calculated from focal length assumed to be mm
-    float n = 0.1f; // random
-    float f = 1.0f; // to make it small
-    float halfHeight = tanf(fov / 2.0f);
-    float halfWidth = halfHeight * ar;
+    drawLine(frustum.v[0], frustum.v[1]);
+    drawLine(frustum.v[0], frustum.v[2]);
+    drawLine(frustum.v[3], frustum.v[1]);
+    drawLine(frustum.v[3], frustum.v[2]);
 
-    float xn = halfWidth * n;
-    float xf = halfWidth * f;
-    float yn = halfHeight * n;
-    float yf = halfHeight * f;
+    drawLine(frustum.v[4], frustum.v[5]);
+    drawLine(frustum.v[4], frustum.v[6]);
+    drawLine(frustum.v[7], frustum.v[5]);
+    drawLine(frustum.v[7], frustum.v[6]);
 
-    std::vector<QVector4D> farr = {
-        QVector4D(xn, yn, n, 1.0f),
-        QVector4D(-xn, yn, n, 1.0f),
-        QVector4D(xn, -yn, n, 1.0f),
-        QVector4D(-xn, -yn, n, 1.0f),
-
-        QVector4D(xf, yf, f, 1.0f),
-        QVector4D(-xf, yf, f, 1.0f),
-        QVector4D(xf, -yf, f, 1.0f),
-        QVector4D(-xf, -yf, f, 1.0f)
-    };
-
-    QVector3D v[8];
-    for (int i = 0; i < 8; i++)
-    {
-        QVector4D ff = inv * farr[i];
-        v[i].setX( ff.x() / ff.w() );
-        v[i].setY( ff.y() / ff.w() );
-        v[i].setZ( ff.z() / ff.w() );
-
-
-    }
-
-    //drawQuad(v[7], v[5], v[4], v[6]);
-
-    drawLine(v[0], v[1]);
-    drawLine(v[0], v[2]);
-    drawLine(v[3], v[1]);
-    drawLine(v[3], v[2]);
-
-    //drawLine(v[4], v[5]);
-    //drawLine(v[4], v[6]);
-    //drawLine(v[7], v[5]);
-    //drawLine(v[7], v[6]);
-
-    drawLine(v[0], v[4]);
-    drawLine(v[1], v[5]);
-    drawLine(v[3], v[7]);
-    drawLine(v[2], v[6]);
+    drawLine(frustum.v[0], frustum.v[4]);
+    drawLine(frustum.v[1], frustum.v[5]);
+    drawLine(frustum.v[3], frustum.v[7]);
+    drawLine(frustum.v[2], frustum.v[6]);
 
 
 
@@ -339,21 +334,4 @@ void MyGLWidget::keyPressEvent(QKeyEvent *event)
 }
 
 
-QQuaternion MyGLWidget::ToQuaternion(QVector3D rot) // yaw (Z), pitch (Y), roll (X)
-{
-    // Abbreviations for the various angular functions
-    double cy = cos(rot.z()* 0.5);
-    double sy = sin(rot.z() * 0.5);
-    double cp = cos(rot.y() * 0.5);
-    double sp = sin(rot.y() * 0.5);
-    double cr = cos(rot.x() * 0.5);
-    double sr = sin(rot.x() * 0.5);
 
-    QQuaternion q;
-    q.setScalar(cr * cp * cy + sr * sp * sy);
-    q.setX(sr * cp * cy - cr * sp * sy);
-    q.setY(cr * sp * cy + sr * cp * sy);
-    q.setZ(cr * cp * sy - sr * sp * cy);
-
-    return q;
-}

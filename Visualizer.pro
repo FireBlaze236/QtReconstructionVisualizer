@@ -20,7 +20,8 @@ HEADERS += \
     Filepaths.h \
     happly.h \
     mainwindow.h \
-    myglwidget.h
+    myglwidget.h \
+    mystructs.h
 
 FORMS += \
     mainwindow.ui
